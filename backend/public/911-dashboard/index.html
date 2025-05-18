@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>911 Emergency Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-light: #2563eb;
+            --secondary: #475569;
+            --danger: #dc2626;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --light: #f8fafc;
+            --dark: #1e293b;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --radius: 8px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f1f5f9;
+            color: var(--dark);
+            line-height: 1.6;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, #0f2659 100%);
+            color: white;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        header p {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .header-badge {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background-color: rgba(255,255,255,0.15);
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.75rem;
+            font-weight: bold;
+            backdrop-filter: blur(5px);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 1.5rem auto;
+            padding: 0 1rem;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 992px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background-color: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .panel-header h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .calls-list {
+            max-height: 700px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--secondary) var(--light);
+        }
+
+        .calls-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .calls-list::-webkit-scrollbar-track {
+            background: var(--light);
+        }
+
+        .calls-list::-webkit-scrollbar-thumb {
+            background-color: var(--secondary);
+            border-radius: 20px;
+        }
+
+        .call-item {
+            padding: 1rem;
+            border-radius: var(--radius);
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid var(--border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .call-item:hover {
+            box-shadow: var(--shadow);
+        }
+
+        .call-item.active {
+            background-color: rgba(37, 99, 235, 0.05);
+            border-color: var(--primary-light);
+        }
+
+        .call-time {
+            font-size: 0.8rem;
+            color: var(--secondary);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .call-address {
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+            color: var(--secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .call-emergency {
+            font-size: 0.85rem;
+            margin-top: 0.25rem;
+            font-style: italic;
+            color: var(--secondary);
+        }
+
+        .emergency-high {
+            border-left: 4px solid var(--danger);
+        }
+
+        .emergency-high::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 0 30px 30px 0;
+            border-color: transparent var(--danger) transparent transparent;
+        }
+
+        .emergency-medium {
+            border-left: 4px solid var(--warning);
+        }
+
+        .emergency-low {
+            border-left: 4px solid var(--success);
+        }
+
+        .refresh-btn {
+            background-color: var(--primary-light);
+            color: white;
+            border: none;
+            padding: 0.5rem 1.25rem;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .refresh-btn:hover {
+            background-color: var(--primary);
+            transform: translateY(-1px);
+        }
+
+        .refresh-btn:active {
+            transform: translateY(1px);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-new {
+            background-color: var(--danger);
+            box-shadow: 0 0 0 rgba(220, 38, 38, 0.4);
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-processing {
+            background-color: var(--warning);
+        }
+
+        .status-resolved {
+            background-color: var(--success);
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 8px rgba(220, 38, 38, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            color: var(--secondary);
+        }
+
+        .empty-state i {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        .no-calls {
+            margin-top: 1rem;
+            font-style: italic;
+            color: var(--secondary);
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .data-group {
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .data-label {
+            font-weight: 600;
+            padding: 0.75rem;
+            background-color: #f8fafc;
+            color: var(--primary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .data-value {
+            padding: 1rem;
+            word-break: break-word;
+            line-height: 1.7;
+        }
+
+        .data-row {
+            display: flex;
+            margin-bottom: 0.5rem;
+        }
+
+        .data-row-label {
+            flex: 0 0 130px;
+            font-weight: 500;
+            color: var(--secondary);
+        }
+
+        .data-row-value {
+            flex: 1;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.35em 0.65em;
+            font-size: 0.75em;
+            font-weight: 600;
+            line-height: 1;
+            text-align: center;
+            white-space: nowrap;
+            vertical-align: baseline;
+            border-radius: 0.25rem;
+            margin-left: 0.5rem;
+        }
+
+        .badge-danger {
+            background-color: #fecaca;
+            color: #991b1b;
+        }
+
+        .badge-warning {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-success {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-info {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .progress-container {
+            width: 100%;
+            background-color: #e5e7eb;
+            border-radius: 0.25rem;
+            height: 8px;
+            margin-top: 0.25rem;
+        }
+
+        .progress-bar {
+            height: 8px;
+            border-radius: 0.25rem;
+        }
+
+        .progress-high {
+            background-color: var(--success);
+        }
+
+        .progress-medium {
+            background-color: var(--warning);
+        }
+
+        .progress-low {
+            background-color: var(--danger);
+        }
+
+        .timestamp {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background-color: #f8fafc;
+            border-radius: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            color: var(--secondary);
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.5rem;
+            }
+            .container {
+                padding: 0 0.5rem;
+                margin: 1rem auto;
+            }
+            .panel {
+                padding: 1rem;
+            }
+            .data-row {
+                flex-direction: column;
+            }
+            .data-row-label {
+                margin-bottom: 0.25rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-badge">LIVE</div>
+        <h1>911 Emergency Dashboard</h1>
+        <p>Mock Emergency Services Dispatcher</p>
+    </header>
+    
+    <div class="container">
+        <div class="panel">
+            <div class="panel-header">
+                <h2><i class="fas fa-phone-alt"></i> Emergency Calls</h2>
+                <button id="refresh-btn" class="refresh-btn">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+            
+            <div class="dashboard">
+                <div class="left-panel">
+                    <div id="calls-list" class="calls-list">
+                        <div class="empty-state">
+                            <i class="fas fa-headset"></i>
+                            <p>Loading emergency calls...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="right-panel">
+                    <div id="call-details" class="panel">
+                        <h3>Call Details</h3>
+                        <div id="selected-call-details">
+                            <div class="empty-state">
+                                <i class="fas fa-info-circle"></i>
+                                <p>Select a call to view details</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const callsList = document.getElementById('calls-list');
+            const callDetails = document.getElementById('selected-call-details');
+            const refreshBtn = document.getElementById('refresh-btn');
+            
+            let selectedCallId = null;
+            let emergencyCalls = [];
+            
+            // Load emergency calls
+            loadEmergencyCalls();
+            
+            // Set up auto-refresh (every 30 seconds)
+            setInterval(loadEmergencyCalls, 30000);
+            
+            // Refresh button handler
+            refreshBtn.addEventListener('click', () => {
+                refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+                loadEmergencyCalls();
+                setTimeout(() => {
+                    refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
+                }, 1000);
+            });
+            
+            // Function to load emergency calls from the API
+            function loadEmergencyCalls() {
+                fetch('/api/emergency/calls')
+                    .then(response => response.json())
+                    .then(data => {
+                        emergencyCalls = data;
+                        renderCallsList();
+                    })
+                    .catch(error => {
+                        console.error('Error loading emergency calls:', error);
+                        callsList.innerHTML = `
+                            <div class="empty-state">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <p>Error loading calls</p>
+                            </div>
+                        `;
+                    });
+            }
+            
+            // Function to render the calls list
+            function renderCallsList() {
+                if (emergencyCalls.length === 0) {
+                    callsList.innerHTML = `
+                        <div class="no-calls">
+                            <i class="fas fa-phone-slash" style="font-size: 2rem; opacity: 0.3; margin-bottom: 1rem; display: block;"></i>
+                            <p>No emergency calls received</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                callsList.innerHTML = '';
+                
+                // Sort calls by timestamp (newest first)
+                emergencyCalls.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                
+                emergencyCalls.forEach(call => {
+                    const callItem = document.createElement('div');
+                    callItem.classList.add('call-item');
+                    
+                    // Set emergency level based on data
+                    const hasHighPriority = 
+                        (call.urgency && call.urgency.toLowerCase().includes('urgent')) ||
+                        (call.injuries && call.injuries.toLowerCase().includes('severe')) ||
+                        (call.threat_details && call.threat_details.toLowerCase().includes('weapon'));
+                    
+                    const hasMediumPriority = 
+                        call.emergency_type || 
+                        call.injuries ||
+                        call.threat_details;
+                    
+                    if (hasHighPriority) {
+                        callItem.classList.add('emergency-high');
+                    } else if (hasMediumPriority) {
+                        callItem.classList.add('emergency-medium');
+                    } else {
+                        callItem.classList.add('emergency-low');
+                    }
+                    
+                    if (call.id === selectedCallId) {
+                        callItem.classList.add('active');
+                    }
+                    
+                    // Format the timestamp
+                    const callTime = new Date(call.timestamp);
+                    const formattedTime = callTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) + ' ' + 
+                                         callTime.toLocaleDateString([], {month: 'short', day: 'numeric', year: 'numeric'});
+                    
+                    // Create call item content
+                    callItem.innerHTML = `
+                        <div>
+                            <span class="status-indicator ${hasHighPriority ? 'status-new' : (hasMediumPriority ? 'status-processing' : 'status-resolved')}"></span>
+                            <strong>${call.name || 'Unknown Caller'}</strong>
+                            ${hasHighPriority ? '<span class="badge badge-danger">Urgent</span>' : ''}
+                            <div class="call-time"><i class="far fa-clock"></i> ${formattedTime}</div>
+                            <div class="call-address"><i class="fas fa-map-marker-alt"></i> ${call.address || 'Address unknown'}</div>
+                            ${call.emergency_type ? `<div class="call-emergency">${call.emergency_type}</div>` : ''}
+                        </div>
+                    `;
+                    
+                    // Add click handler to view call details
+                    callItem.addEventListener('click', () => {
+                        document.querySelectorAll('.call-item').forEach(item => {
+                            item.classList.remove('active');
+                        });
+                        callItem.classList.add('active');
+                        selectedCallId = call.id;
+                        renderCallDetails(call);
+                    });
+                    
+                    callsList.appendChild(callItem);
+                });
+                
+                // If a call was selected, keep it selected
+                if (selectedCallId) {
+                    const selectedCall = emergencyCalls.find(call => call.id === selectedCallId);
+                    if (selectedCall) {
+                        renderCallDetails(selectedCall);
+                    }
+                }
+            }
+            
+            // Function to render call details
+            function renderCallDetails(call) {
+                const timestamp = new Date(call.timestamp);
+                const formattedTimestamp = timestamp.toLocaleString([], {
+                    weekday: 'short',
+                    month: 'short', 
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                
+                let detailsHtml = `
+                    <div class="timestamp">ID: ${call.id}</div>
+                    <div class="data-group">
+                        <div class="data-label"><i class="far fa-calendar-alt"></i> Call Information</div>
+                        <div class="data-value">
+                            <div class="data-row">
+                                <div class="data-row-label">Received At</div>
+                                <div class="data-row-value">${formattedTimestamp}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Add caller information if any field is available
+                if (call.name || call.phone || call.address) {
+                    detailsHtml += `
+                        <div class="data-group">
+                            <div class="data-label"><i class="fas fa-user"></i> Caller Information</div>
+                            <div class="data-value">
+                                <div class="data-row">
+                                    <div class="data-row-label">Name</div>
+                                    <div class="data-row-value">${call.name || 'Unknown'}</div>
+                                </div>
+                                <div class="data-row">
+                                    <div class="data-row-label">Phone</div>
+                                    <div class="data-row-value">${call.phone || 'Unknown'}</div>
+                                </div>
+                                <div class="data-row">
+                                    <div class="data-row-label">Location</div>
+                                    <div class="data-row-value">${call.address || 'Unknown'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Add emergency details if any field is available
+                if (call.emergency_type || call.threat_details || call.injuries || call.people_involved || call.urgency) {
+                    // Add emergency details with urgency indicator
+                    let urgencyBadge = '';
+                    if (call.urgency) {
+                        if (call.urgency.toLowerCase().includes('urgent') || 
+                            call.urgency.toLowerCase().includes('immediat')) {
+                            urgencyBadge = '<span class="badge badge-danger">Urgent</span>';
+                        } else if (call.urgency.toLowerCase().includes('soon')) {
+                            urgencyBadge = '<span class="badge badge-warning">Soon</span>';
+                        }
+                    }
+                    
+                    detailsHtml += `
+                        <div class="data-group">
+                            <div class="data-label"><i class="fas fa-exclamation-triangle"></i> Emergency Details ${urgencyBadge}</div>
+                            <div class="data-value">
+                                <div class="data-row">
+                                    <div class="data-row-label">Type</div>
+                                    <div class="data-row-value">${call.emergency_type || 'Unknown'}</div>
+                                </div>
+                                <div class="data-row">
+                                    <div class="data-row-label">Threat Details</div>
+                                    <div class="data-row-value">${call.threat_details || 'Unknown'}</div>
+                                </div>
+                                <div class="data-row">
+                                    <div class="data-row-label">Injuries</div>
+                                    <div class="data-row-value">${call.injuries || 'Unknown'}</div>
+                                </div>
+                                <div class="data-row">
+                                    <div class="data-row-label">People Involved</div>
+                                    <div class="data-row-value">${call.people_involved || 'Unknown'}</div>
+                                </div>
+                                <div class="data-row">
+                                    <div class="data-row-label">Urgency</div>
+                                    <div class="data-row-value">${call.urgency || 'Unknown'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Add safety information
+                if (call.safety_info) {
+                    detailsHtml += `
+                        <div class="data-group">
+                            <div class="data-label"><i class="fas fa-shield-alt"></i> Safety Information</div>
+                            <div class="data-value">${call.safety_info}</div>
+                        </div>
+                    `;
+                }
+                
+                // Add background sounds
+                if (call.background_sounds) {
+                    detailsHtml += `
+                        <div class="data-group">
+                            <div class="data-label"><i class="fas fa-volume-up"></i> Background Sounds</div>
+                            <div class="data-value">${call.background_sounds}</div>
+                        </div>
+                    `;
+                }
+                
+                // Add metadata if available with progress bars
+                if (call._metadata) {
+                    const requiredClass = call._metadata.data_quality.required >= 70 ? 'progress-high' : 
+                                      (call._metadata.data_quality.required >= 30 ? 'progress-medium' : 'progress-low');
+                    
+                    const emergencyClass = call._metadata.data_quality.emergency_details >= 70 ? 'progress-high' : 
+                                        (call._metadata.data_quality.emergency_details >= 30 ? 'progress-medium' : 'progress-low');
+                    
+                    const overallClass = call._metadata.data_quality.overall >= 70 ? 'progress-high' : 
+                                      (call._metadata.data_quality.overall >= 30 ? 'progress-medium' : 'progress-low');
+                    
+                    detailsHtml += `
+                        <div class="data-group">
+                            <div class="data-label"><i class="fas fa-chart-bar"></i> Data Analysis</div>
+                            <div class="data-value">
+                                <div class="data-row">
+                                    <div class="data-row-label">Likely Emergency</div>
+                                    <div class="data-row-value">
+                                        ${call._metadata.likely_emergency ? 
+                                            '<span class="badge badge-danger">Yes</span>' : 
+                                            '<span class="badge badge-info">Uncertain</span>'}
+                                    </div>
+                                </div>
+                                
+                                <div style="margin-top: 1rem; margin-bottom: 0.5rem; font-weight: 500;">Data Quality</div>
+                                
+                                <div class="data-row">
+                                    <div class="data-row-label">Required Info</div>
+                                    <div class="data-row-value">
+                                        ${call._metadata.data_quality.required}%
+                                        <div class="progress-container">
+                                            <div class="progress-bar ${requiredClass}" style="width: ${call._metadata.data_quality.required}%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="data-row">
+                                    <div class="data-row-label">Emergency Details</div>
+                                    <div class="data-row-value">
+                                        ${call._metadata.data_quality.emergency_details}%
+                                        <div class="progress-container">
+                                            <div class="progress-bar ${emergencyClass}" style="width: ${call._metadata.data_quality.emergency_details}%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="data-row">
+                                    <div class="data-row-label">Overall</div>
+                                    <div class="data-row-value">
+                                        ${call._metadata.data_quality.overall}%
+                                        <div class="progress-container">
+                                            <div class="progress-bar ${overallClass}" style="width: ${call._metadata.data_quality.overall}%"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                callDetails.innerHTML = detailsHtml;
+            }
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-white text-gray-900 dark:bg-dark-300 dark:text-gray-100 transition-colors duration-200;
+  }
+  
+  /* Improve default scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-1.5;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-dark-100 rounded-full hover:bg-gray-400 dark:hover:bg-dark-200 transition-colors;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center px-6 py-3 text-base font-medium rounded-md shadow-sm transition-all duration-200;
+  }
+  
+  .btn-primary {
+    @apply bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 hover:shadow-md hover:shadow-primary-500/20 dark:hover:shadow-primary-700/20;
+  }
+  
+  .btn-secondary {
+    @apply bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:bg-dark-200 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-dark-100 hover:shadow-sm dark:hover:shadow-dark-100/20;
+  }
+
+  .container-custom {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .section {
+    @apply py-12 sm:py-16 md:py-20 lg:py-24;
+  }
+  
+  .heading-1 {
+    @apply text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight;
+  }
+  
+  .heading-2 {
+    @apply text-3xl sm:text-4xl font-bold tracking-tight;
+  }
+  
+  .heading-3 {
+    @apply text-2xl sm:text-3xl font-bold;
+  }
+  
+  .card {
+    @apply bg-white dark:bg-dark-200 rounded-xl shadow-md overflow-hidden transition-all duration-200;
+  }
+
+  .glass {
+    @apply bg-white/70 dark:bg-dark-300/80 backdrop-blur-lg backdrop-saturate-150 transition-all duration-300;
+  }
+  
+  .glass-frosted {
+    @apply bg-white/50 dark:bg-dark-300/60 backdrop-blur-xl backdrop-saturate-200 transition-all duration-300;
+  }
+  
+  .glass-card {
+    @apply glass rounded-xl shadow-md overflow-hidden border border-white/20 dark:border-dark-100/30 hover:shadow-lg transition-shadow duration-300;
+  }
+  
+  .glass-nav {
+    @apply glass shadow-sm border-b border-white/10 dark:border-dark-100/20;
+  }
+  
+  .glass-button {
+    @apply glass rounded-md border border-white/30 dark:border-dark-100/40 hover:bg-white/80 dark:hover:bg-dark-300/90 transition-all duration-200;
+  }
+
+  .equalizer-bar {
+    @apply w-1 bg-primary-500 rounded-t-sm mx-[1px] origin-bottom transition-all duration-150;
+  }
+  
+  /* Button glow effect */
+  .btn-glow {
+    @apply relative overflow-hidden;
+  }
+  
+  .btn-glow::after {
+    @apply content-[''] absolute top-0 left-0 w-full h-full bg-gradient-to-r from-white/0 via-white/30 to-white/0 transform translate-x-[-100%] transition-transform;
+  }
+  
+  .btn-glow:hover::after {
+    @apply translate-x-[100%] duration-700;
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "yamnet-realtime-emergency-detector",
+  "version": "1.0.0",
+  "description": "Realtime emergency sound detector using YAMNet (via TF Hub) in Node.js",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@tensorflow/tfjs-node": "^4.9.0",
+    "mic": "^2.1.1",
+    "wav": "^1.0.2",
+    "node-fetch": "^3.3.1"
+  }
+}

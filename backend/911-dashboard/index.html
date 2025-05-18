@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>911 Emergency Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        header {
+            background-color: #d32f2f;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        .dashboard {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .left-panel {
+            flex: 1;
+            min-width: 300px;
+        }
+        .right-panel {
+            flex: 2;
+            min-width: 400px;
+        }
+        .panel {
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .calls-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .call-item {
+            padding: 0.75rem;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .call-item:hover {
+            background-color: #f9f9f9;
+        }
+        .call-item.active {
+            background-color: #e3f2fd;
+            border-left: 3px solid #2196f3;
+        }
+        .call-time {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        .emergency-high {
+            border-left: 4px solid #d32f2f;
+        }
+        .emergency-medium {
+            border-left: 4px solid #ff9800;
+        }
+        .emergency-low {
+            border-left: 4px solid #4caf50;
+        }
+        .call-detail {
+            display: none;
+        }
+        .call-detail.active {
+            display: block;
+        }
+        .data-group {
+            margin-bottom: 1rem;
+        }
+        .data-label {
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+            color: #555;
+        }
+        .data-value {
+            padding: 0.5rem;
+            background-color: #f5f5f5;
+            border-radius: 3px;
+            word-break: break-word;
+        }
+        .refresh-btn {
+            background-color: #2196f3;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .refresh-btn:hover {
+            background-color: #1976d2;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        .status-new {
+            background-color: #d32f2f;
+            animation: blink 1s infinite;
+        }
+        .status-processing {
+            background-color: #ff9800;
+        }
+        .status-resolved {
+            background-color: #4caf50;
+        }
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+        .no-calls {
+            margin-top: 1rem;
+            font-style: italic;
+            color: #666;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>911 Emergency Dashboard</h1>
+        <p>Mock Emergency Services Dispatcher</p>
+    </header>
+    
+    <div class="container">
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Emergency Calls</h2>
+                <button id="refresh-btn" class="refresh-btn">Refresh</button>
+            </div>
+            
+            <div class="dashboard">
+                <div class="left-panel">
+                    <div id="calls-list" class="calls-list">
+                        <div class="empty-state">
+                            <p>Loading emergency calls...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="right-panel">
+                    <div id="call-details" class="panel">
+                        <h3>Call Details</h3>
+                        <div id="selected-call-details">
+                            <div class="empty-state">
+                                <p>Select a call to view details</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const callsList = document.getElementById('calls-list');
+            const callDetails = document.getElementById('selected-call-details');
+            const refreshBtn = document.getElementById('refresh-btn');
+            
+            let selectedCallId = null;
+            let emergencyCalls = [];
+            
+            // Load emergency calls
+            loadEmergencyCalls();
+            
+            // Set up auto-refresh (every 30 seconds)
+            setInterval(loadEmergencyCalls, 30000);
+            
+            // Refresh button handler
+            refreshBtn.addEventListener('click', loadEmergencyCalls);
+            
+            // Function to load emergency calls from the API
+            function loadEmergencyCalls() {
+                fetch('/api/emergency/calls')
+                    .then(response => response.json())
+                    .then(data => {
+                        emergencyCalls = data;
+                        renderCallsList();
+                    })
+                    .catch(error => {
+                        console.error('Error loading emergency calls:', error);
+                        callsList.innerHTML = '<div class="empty-state"><p>Error loading calls</p></div>';
+                    });
+            }
+            
+            // Function to render the calls list
+            function renderCallsList() {
+                if (emergencyCalls.length === 0) {
+                    callsList.innerHTML = '<div class="no-calls">No emergency calls received</div>';
+                    return;
+                }
+                
+                callsList.innerHTML = '';
+                
+                // Sort calls by timestamp (newest first)
+                emergencyCalls.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                
+                emergencyCalls.forEach(call => {
+                    const callItem = document.createElement('div');
+                    callItem.classList.add('call-item');
+                    
+                    // Set emergency level based on data
+                    const hasHighPriority = call.data && (
+                        call.data.urgency?.toLowerCase().includes('urgent') ||
+                        call.data.injuries?.toLowerCase().includes('severe') ||
+                        call.data.threat_details?.toLowerCase().includes('weapon')
+                    );
+                    
+                    const hasMediumPriority = call.data && (
+                        call.data.emergency_type || 
+                        call.data.injuries ||
+                        call.data.threat_details
+                    );
+                    
+                    if (hasHighPriority) {
+                        callItem.classList.add('emergency-high');
+                    } else if (hasMediumPriority) {
+                        callItem.classList.add('emergency-medium');
+                    } else {
+                        callItem.classList.add('emergency-low');
+                    }
+                    
+                    if (call.id === selectedCallId) {
+                        callItem.classList.add('active');
+                    }
+                    
+                    // Format the timestamp
+                    const callTime = new Date(call.timestamp);
+                    const formattedTime = callTime.toLocaleTimeString() + ' ' + callTime.toLocaleDateString();
+                    
+                    // Create call item content
+                    callItem.innerHTML = `
+                        <div>
+                            <span class="status-indicator ${hasHighPriority ? 'status-new' : 'status-processing'}"></span>
+                            <strong>${call.data?.name || 'Unknown Caller'}</strong>
+                            <div class="call-time">${formattedTime}</div>
+                            <div>${call.data?.address || 'Address unknown'}</div>
+                            <div>${call.data?.emergency_type || 'Emergency type unknown'}</div>
+                        </div>
+                    `;
+                    
+                    // Add click handler to view call details
+                    callItem.addEventListener('click', () => {
+                        document.querySelectorAll('.call-item').forEach(item => {
+                            item.classList.remove('active');
+                        });
+                        callItem.classList.add('active');
+                        selectedCallId = call.id;
+                        renderCallDetails(call);
+                    });
+                    
+                    callsList.appendChild(callItem);
+                });
+                
+                // If a call was selected, keep it selected
+                if (selectedCallId) {
+                    const selectedCall = emergencyCalls.find(call => call.id === selectedCallId);
+                    if (selectedCall) {
+                        renderCallDetails(selectedCall);
+                    }
+                }
+            }
+            
+            // Function to render call details
+            function renderCallDetails(call) {
+                const timestamp = new Date(call.timestamp);
+                const formattedTimestamp = timestamp.toLocaleString();
+                
+                let detailsHtml = `
+                    <div class="data-group">
+                        <div class="data-label">Call Received At</div>
+                        <div class="data-value">${formattedTimestamp}</div>
+                    </div>
+                `;
+                
+                if (call.data) {
+                    // Add caller information
+                    detailsHtml += `
+                        <div class="data-group">
+                            <div class="data-label">Caller Information</div>
+                            <div class="data-value">
+                                <strong>Name:</strong> ${call.data.name || 'Unknown'}<br>
+                                <strong>Phone:</strong> ${call.data.phone || 'Unknown'}<br>
+                                <strong>Location:</strong> ${call.data.address || 'Unknown'}
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Add emergency details
+                    detailsHtml += `
+                        <div class="data-group">
+                            <div class="data-label">Emergency Details</div>
+                            <div class="data-value">
+                                <strong>Type:</strong> ${call.data.emergency_type || 'Unknown'}<br>
+                                <strong>Threat Details:</strong> ${call.data.threat_details || 'Unknown'}<br>
+                                <strong>Injuries:</strong> ${call.data.injuries || 'Unknown'}<br>
+                                <strong>People Involved:</strong> ${call.data.people_involved || 'Unknown'}<br>
+                                <strong>Urgency:</strong> ${call.data.urgency || 'Unknown'}
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Add safety information
+                    if (call.data.safety_info) {
+                        detailsHtml += `
+                            <div class="data-group">
+                                <div class="data-label">Safety Information</div>
+                                <div class="data-value">${call.data.safety_info}</div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Add background sounds
+                    if (call.data.background_sounds) {
+                        detailsHtml += `
+                            <div class="data-group">
+                                <div class="data-label">Background Sounds</div>
+                                <div class="data-value">${call.data.background_sounds}</div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Add metadata if available
+                    if (call.data._metadata) {
+                        detailsHtml += `
+                            <div class="data-group">
+                                <div class="data-label">Analysis</div>
+                                <div class="data-value">
+                                    <strong>Likely Emergency:</strong> ${call.data._metadata.likely_emergency ? 'Yes' : 'Uncertain'}<br>
+                                    <strong>Data Quality:</strong><br>
+                                    - Required Info: ${call.data._metadata.data_quality.required}%<br>
+                                    - Emergency Details: ${call.data._metadata.data_quality.emergency_details}%<br>
+                                    - Overall: ${call.data._metadata.data_quality.overall}%
+                                </div>
+                            </div>
+                        `;
+                    }
+                } else {
+                    detailsHtml += `
+                        <div class="data-group">
+                            <div class="data-label">Emergency Data</div>
+                            <div class="data-value">No detailed information available</div>
+                        </div>
+                    `;
+                }
+                
+                callDetails.innerHTML = detailsHtml;
+            }
+        });
+    </script>
+</body>
+</html> 

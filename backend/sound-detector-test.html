@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Sound Detection Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="./public/audio-classifier.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #d32f2f;
+        }
+        .container {
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #e8f5e9;
+            border-radius: 4px;
+        }
+        .detection-list {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .detection-item {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .detection-item:last-child {
+            border-bottom: none;
+        }
+        .detection-item.new {
+            background-color: #fff8e1;
+            animation: highlight 2s ease-out;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 16px;
+            background-color: #2196f3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #1976d2;
+        }
+        button.danger {
+            background-color: #f44336;
+        }
+        button.danger:hover {
+            background-color: #d32f2f;
+        }
+        @keyframes highlight {
+            from { background-color: #ffeb3b; }
+            to { background-color: #fff8e1; }
+        }
+        .meter-container {
+            width: 100%;
+            background-color: #ddd;
+            border-radius: 3px;
+            margin: 15px 0;
+        }
+        .meter {
+            height: 20px;
+            background-color: #4caf50;
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .sound-highlight {
+            background-color: #ffcdd2;
+            color: #d32f2f;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 3px;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <h1>Emergency Sound Detection Test</h1>
+    
+    <div class="container">
+        <h2>Status</h2>
+        <div id="status" class="status">Initializing...</div>
+        
+        <div class="meter-container">
+            <div id="audio-meter" class="meter"></div>
+        </div>
+        
+        <div class="controls">
+            <button id="start-btn">Start Detection</button>
+            <button id="stop-btn" disabled>Stop Detection</button>
+            <button id="test-btn">Test Sound (Play Gunshot Sound)</button>
+            <button id="clear-btn" class="danger">Clear Detections</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Detected Sounds</h2>
+        <div id="detection-summary">No sounds detected yet</div>
+        <div id="detection-list" class="detection-list">
+            <div class="detection-item">Waiting for detections...</div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>Debug Information</h2>
+        <div id="debug-info">
+            <p>Model status: Not loaded</p>
+            <p>Detection threshold: N/A</p>
+            <p>Audio context: Not initialized</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const statusElement = document.getElementById('status');
+            const detectionListElement = document.getElementById('detection-list');
+            const detectionSummaryElement = document.getElementById('detection-summary');
+            const startButton = document.getElementById('start-btn');
+            const stopButton = document.getElementById('stop-btn');
+            const testButton = document.getElementById('test-btn');
+            const clearButton = document.getElementById('clear-btn');
+            const audioMeter = document.getElementById('audio-meter');
+            const debugInfo = document.getElementById('debug-info');
+            
+            let soundDetector = null;
+            let mediaStream = null;
+            let audioContext = null;
+            let analyzer = null;
+            let isRunning = false;
+            let detectionCount = 0;
+
+            // Initialize the sound detector
+            async function initSoundDetector() {
+                try {
+                    statusElement.textContent = "Loading YAMNet model...";
+                    
+                    soundDetector = new EmergencySoundDetector();
+                    soundDetector.setDetectionCallback(updateDetectedSounds);
+                    
+                    const initialized = await soundDetector.initialize();
+                    
+                    if (initialized) {
+                        statusElement.textContent = "Emergency sound detector initialized. Ready to start.";
+                        startButton.disabled = false;
+                        
+                        // Update debug info
+                        debugInfo.innerHTML = `
+                            <p>Model status: Loaded</p>
+                            <p>Detection threshold: ${soundDetector.confidenceThreshold}</p>
+                            <p>Emergency sound classes: ${soundDetector.emergencySoundClasses.length} classes defined</p>
+                        `;
+                        
+                        return true;
+                    } else {
+                        statusElement.textContent = "Failed to initialize emergency sound detector";
+                        return false;
+                    }
+                } catch (error) {
+                    console.error('Error initializing sound detector:', error);
+                    statusElement.textContent = `Error: ${error.message}`;
+                    return false;
+                }
+            }
+
+            // Update detected sounds in the UI
+            function updateDetectedSounds(sounds) {
+                // Update the detection list with the latest sounds
+                if (sounds.length > 0) {
+                    // Clear "waiting" message if it's still there
+                    if (detectionListElement.innerHTML.includes("Waiting for detections")) {
+                        detectionListElement.innerHTML = "";
+                    }
+                    
+                    // Get the latest sound and add it to the list
+                    const latestSound = sounds[sounds.length - 1];
+                    detectionCount++;
+                    
+                    const detectionItem = document.createElement('div');
+                    detectionItem.classList.add('detection-item', 'new');
+                    detectionItem.innerHTML = `
+                        <strong>${detectionCount}. ${latestSound.sound}</strong> 
+                        (Confidence: ${Math.round(latestSound.confidence * 100)}%) - 
+                        ${new Date(latestSound.timestamp).toLocaleTimeString()}
+                    `;
+                    
+                    detectionListElement.prepend(detectionItem);
+                    
+                    // Highlight the status
+                    statusElement.innerHTML = `Listening... <span class="sound-highlight">Detected: ${latestSound.sound}</span>`;
+                    
+                    // Update summary
+                    updateSummary(sounds);
+                    
+                    // Remove highlight after animation completes
+                    setTimeout(() => {
+                        detectionItem.classList.remove('new');
+                    }, 2000);
+                }
+            }
+            
+            // Update the sound summary
+            function updateSummary(sounds) {
+                if (sounds.length === 0) {
+                    detectionSummaryElement.textContent = "No sounds detected yet";
+                    return;
+                }
+                
+                // Group similar sounds
+                const soundCounts = {};
+                sounds.forEach(detection => {
+                    const sound = detection.sound;
+                    soundCounts[sound] = (soundCounts[sound] || 0) + 1;
+                });
+                
+                // Convert to array and sort by count
+                const sortedSounds = Object.entries(soundCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([sound, count]) => `${sound} (${count}x)`);
+                
+                detectionSummaryElement.textContent = `Detected sounds: ${sortedSounds.join(", ")}`;
+            }
+
+            // Set up audio visualization
+            function setupAudioVisualization(stream) {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                
+                analyzer = audioContext.createAnalyser();
+                analyzer.fftSize = 256;
+                
+                const source = audioContext.createMediaStreamSource(stream);
+                source.connect(analyzer);
+                
+                const bufferLength = analyzer.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                
+                function updateMeter() {
+                    if (!isRunning) return;
+                    
+                    analyzer.getByteFrequencyData(dataArray);
+                    
+                    // Calculate average volume
+                    let sum = 0;
+                    for (let i = 0; i < bufferLength; i++) {
+                        sum += dataArray[i];
+                    }
+                    const average = sum / bufferLength;
+                    
+                    // Scale to percentage (0-100)
+                    const volume = Math.min(100, Math.round((average / 255) * 100));
+                    
+                    // Update meter
+                    audioMeter.style.width = volume + '%';
+                    
+                    // Use color based on volume
+                    if (volume > 80) {
+                        audioMeter.style.backgroundColor = '#f44336';
+                    } else if (volume > 50) {
+                        audioMeter.style.backgroundColor = '#ff9800';
+                    } else {
+                        audioMeter.style.backgroundColor = '#4caf50';
+                    }
+                    
+                    requestAnimationFrame(updateMeter);
+                }
+                
+                updateMeter();
+            }
+
+            // Start detection
+            async function startDetection() {
+                try {
+                    statusElement.textContent = "Requesting microphone access...";
+                    
+                    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    
+                    statusElement.textContent = "Starting sound detection...";
+                    
+                    const started = await soundDetector.startDetection(mediaStream);
+                    
+                    if (started) {
+                        isRunning = true;
+                        statusElement.textContent = "Sound detection active. Listening for emergency sounds...";
+                        startButton.disabled = true;
+                        stopButton.disabled = false;
+                        
+                        // Set up audio visualization
+                        setupAudioVisualization(mediaStream);
+                    } else {
+                        statusElement.textContent = "Failed to start sound detection";
+                    }
+                } catch (error) {
+                    console.error('Error starting detection:', error);
+                    statusElement.textContent = `Error: ${error.message}`;
+                }
+            }
+
+            // Stop detection
+            function stopDetection() {
+                if (soundDetector) {
+                    soundDetector.stopDetection();
+                }
+                
+                if (mediaStream) {
+                    mediaStream.getTracks().forEach(track => track.stop());
+                    mediaStream = null;
+                }
+                
+                isRunning = false;
+                statusElement.textContent = "Sound detection stopped";
+                startButton.disabled = false;
+                stopButton.disabled = true;
+                audioMeter.style.width = '0%';
+            }
+            
+            // Clear detections
+            function clearDetections() {
+                detectionListElement.innerHTML = "<div class='detection-item'>Waiting for detections...</div>";
+                detectionSummaryElement.textContent = "No sounds detected yet";
+                detectionCount = 0;
+                
+                if (soundDetector) {
+                    soundDetector.detectedSounds = [];
+                }
+            }
+            
+            // Test function to play a gunshot sound
+            function playTestSound() {
+                const audio = new Audio('https://soundbible.com/mp3/Rifle-SoundBible.com-144100417.mp3');
+                audio.play();
+                statusElement.textContent = "Playing test sound (gunshot)...";
+            }
+
+            // Event listeners
+            startButton.addEventListener('click', startDetection);
+            stopButton.addEventListener('click', stopDetection);
+            clearButton.addEventListener('click', clearDetections);
+            testButton.addEventListener('click', playTestSound);
+
+            // Initialize on page load
+            await initSoundDetector();
+        });
+    </script>
+</body>
+</html> 
